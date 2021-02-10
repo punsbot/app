@@ -5,4 +5,3 @@ chardet==4.0.0
 requests==2.25.1
 six==1.15.0
 pyTelegramBotAPI==3.6.7
-

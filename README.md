@@ -9,17 +9,6 @@ This is the code of [Quevedo](https://t.me/puns2bot) Telegram bot, based on the 
 It differs in the original code in:
  - it's translated to Spanish
  - it doesn't uses submodules to have the default puns
- 
- 
-## Deployment
-
-The `deploy/` directory there are YAML templates to build and deploy it in OpenShift.
-
-To deploy PunsBot in OpenShift:
-- create the secret with your Telegram API token.
-- create the resources (buildConfig, deploymentConfig, imageStream, etc).
-- let the image build.
-
 
 ## Usage
 
