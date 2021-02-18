@@ -340,7 +340,7 @@ def list_callback(query):
                 telebot.types.InlineKeyboardButton('👍 - Dar karma', callback_data='karma-add-' + str(i[0])),
                 telebot.types.InlineKeyboardButton('👎 - Quitar karma', callback_data='karma-rem-' + str(i[0]))
             )
-            bot.send_message(query.message.chat.id, "Texto: %s\nRima: %s\nActiva: %s - Karma: %s" % (str(i[2]), str(i[3]), 'Si' if validations[0]>0 else 'No', str(validations[0])), reply_markup=keyboard); 
+            bot.send_message(query.message.chat.id, "Texto: %s\nRima: %s\nActiva: %s - Karma: %s\nUUID: %s" % (str(i[2]), str(i[3]), 'Si' if validations[0]>0 else 'No', str(validations[0]), i[0]), reply_markup=keyboard); 
     db.close()
 
     if len(answer) == default_listing:
