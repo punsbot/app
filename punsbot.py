@@ -16,7 +16,7 @@ sys.setdefaultencoding('utf-8')
 
 allowed_chars_puns = string.ascii_letters + " " + string.digits + "áéíóúàèìòùäëïöü"
 allowed_chars_triggers = allowed_chars_puns + "^$.*+?(){}\\[]<>=-"
-version = "0.9.5"
+version = "0.9.6"
 default_listing = 5
 
 if 'TOKEN' not in os.environ:
@@ -67,6 +67,7 @@ def db_setup(dbfile='puns.db'):
     db = sqlite3.connect(dbfile)
     cursor = db.cursor()
     cursor.execute('CREATE TABLE IF NOT EXISTS puns (uuid text, chatid int, trigger text, pun text)')
+    cursor.execute('DELETE FROM puns WHERE chatid = 0')
     cursor.execute('CREATE TABLE IF NOT EXISTS validations (punid text, chatid int, userid text, karma int, UNIQUE(punid, chatid, userid))')
     cursor.execute('CREATE TABLE IF NOT EXISTS chatoptions (chatid int, silence int, efectivity int, unique (chatid))')
     db.commit()
