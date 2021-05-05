@@ -1,0 +1,28 @@
+{
+  "name": "punsbot",
+  "version": "1.0.0",
+  "description": "This is the code of Quevedo Telegram bot (https://t.me/puns2bot), based on the original version of punsBot.",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1",
+    "preseed-data": "[ ! -d data ] && mkdir data; touch data/{session.json,database.db}",
+    "start": "npm run preseed-data && node index.js"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/punsbot/app.git"
+  },
+  "author": "Sergio G. <soukron@gmbros.net>",
+  "license": "GPL-3.0",
+  "bugs": {
+    "url": "https://github.com/punsbot/app/issues"
+  },
+  "homepage": "https://github.com/punsbot/app#readme",
+  "dependencies": {
+    "async": "^3.2.0",
+    "sqlite3": "^5.0.2",
+    "telegraf": "^4.1.0",
+    "telegraf-session-local": "^2.1.0",
+    "winston": "^3.3.3"
+  }
+}
