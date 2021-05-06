@@ -13,7 +13,8 @@ const database_filename = 'data/database.db',
       },
       reply_timeout     = process.env.REPLY_TIMEOUT || 5,
       session_filename  = 'data/session.json',
-      telegram_key      = process.env.TELEGRAM_KEY;
+      telegram_key      = process.env.TELEGRAM_KEY,
+      version           = '1.0.0';
 
 // initialize some components (datbase, bot, winston, etc.)
 const db = new sqlite3.Database(database_filename);
@@ -36,8 +37,39 @@ bot.use((new TelegrafSession({ database: session_filename })).middleware());
 
 // info command
 bot.command('info', (ctx) => {
-  ctx.reply('Hola')
+  ctx.reply('Hecho.')
   console.log(ctx)
+});
+
+// help command
+bot.command('ayuda', (ctx) => {
+  message = `Quevedo (@puns2bot) es un bot que odiarás o amarás, \
+sin términos medios.
+Es el tipico amigo gracioso (y pesado) que no puede evitar decirte "Por el \
+culo te la hinco!" cuando dices el número cinco.
+
+Tiene unas cuantas rimas predefinidas (que puedes desactivarlas si no te \
+gustan) y agregarle las tuyas propias para tu canal. Si se pone pesado, podrás \
+mandarle callar un rato o bajar la frecuencia con la que contesta a las rimas.\
+Todo esto está en el menú de /configuracion.
+
+Si necesitas más ayuda, puedes contactar con @Soukron.
+
+Comandos disponibles:
+/agregar - Agregar una rima
+/borrar - Borrar una rima
+/configuracion - Ver las rimas y la configuracion
+/ayuda - Mostrar esta ayuda
+
+Versión: ${version}
+Chat Id: ${ctx.message.chat.id}`
+
+  ctx.reply(message);
+});
+
+// start command
+bot.command('start', (ctx) => {
+  ctx.reply('Hagamos unas rimas. Usa /ayuda para saber cómo va esto.')
 });
 
 // process every matched message
@@ -70,7 +102,7 @@ function processMessage(ctx, triggeredPun) {
 
     // exit if chat is silent
     if (chatConfiguration.silent == 1) {
-      logger.info(`${ctx.update.update_id} - Not answering as the chat is configured as silent`);
+      logger.info(`${ctx.update.update_id} - Not answering because the chat is configured as silent`);
       return;
     }
 
