@@ -19,7 +19,6 @@
   },
   "homepage": "https://github.com/punsbot/app#readme",
   "dependencies": {
-    "async": "^3.2.0",
     "sqlite3": "^5.0.2",
     "telegraf": "^4.1.0",
     "telegraf-session-local": "^2.1.0",

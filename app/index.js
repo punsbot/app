@@ -1,6 +1,5 @@
 // include requirements
-const async           = require('async'),
-      sqlite3         = require('sqlite3').verbose(),
+const sqlite3         = require('sqlite3').verbose(),
       { Telegraf }    = require('telegraf'),
       TelegrafSession = require('telegraf-session-local'),
       winston         = require('winston');
@@ -41,41 +40,74 @@ bot.command('info', (ctx) => {
   console.log(ctx)
 });
 
-// process every single message
-bot.on('message', (ctx) => {
-  if(ctx) {
-    if(ctx.message && ctx.message.text) {
-      logger.info(JSON.stringify(ctx.message));
+// process every matched message
+function processMessage(ctx, row) {
+  logger.info(`${ctx.update.update_id} - Matched message for ${row.trigger} in channel ${ctx.message.chat.title} (${ctx.message.chat.id}) written by ${ctx.from.first_name} ${ctx.from.last_name} (@${ctx.from.username} - ${ctx.from.id})`);
+  logger.debug(`${ctx.update.update_id} - ${JSON.stringify(ctx)}`);
 
-      sql = 'SELECT * FROM pun p LEFT JOIN puns_chats pc ON p.uuid=pc.pun_uuid WHERE (p.is_global=1 OR pc.chat_id=?) ORDER BY RANDOM()';
-      let answer_with_pun = 0;
-      db.all(sql, [ctx.message.chat.id], (err, rows) => {
+  // get the chat configuration
+  db.get('SELECT * FROM chat WHERE id=?', [ctx.message.chat.id], (err, chat) => {
+    if (err) { throw err; }
+    logger.debug(`${ctx.update.update_id} - ${JSON.stringify(chat)}`);
+
+    // load/create chat configuration
+    let chatConfiguration = '';
+    let defaultChatConfiguration = {silent: 0, effectivity: 75, chatty: 1, use_globals: 1};
+    if (! chat) {
+      chatConfiguration = defaultChatConfiguration;
+      db.run(`INSERT INTO chat VALUES (?, ?, strftime('%s','now'))`, [ctx.message.chat.id, JSON.stringify(chatConfiguration)], function(err) {
         if (err) { throw err; }
-        rows.every( row => {
-          logger.info(JSON.stringify(row, null, 2));
-          try {
-            logger.info(`Processing pun trigger: ${row.trigger}`);
-            let re = new RegExp(row.trigger);
-            if (re.test(ctx.message.text)) {
-              logger.info('Trigger matches. Sending answer');
-              ctx.reply(row.pun, {reply_to_message_id: ctx.message.message_id });
-              answer_with_pun = 1;
-              return false;
-            }
-            logger.info('Trigger doesn\'t matches. Skipping...');
-          } catch(e) {
-            logger.info(`Error processing pun trigger: ${row.trigger}`);
-          }
-          return true;
-        });
 
-        if (answer_with_pun == 0) {
-          ctx.reply('Por poco!');
-        }
+        logger.info(`${ctx.update.update_id} - Chat configuration is missing. Using the default configuration`);
       });
     }
-  }
-});
+    else {
+      chatConfiguration = Object.assign(defaultChatConfiguration, JSON.parse(chat.config));
+    }
+    logger.debug(`${ctx.update.update_id} - ${JSON.stringify(chatConfiguration)}`);
+
+    // exit if chat is silent
+    if (chatConfiguration.silent == 1) {
+      logger.info(`${ctx.update.update_id} - Not answering as the chat is configured as silent`);
+      return;
+    }
+
+    // exit if effectivity applies
+    randomEffectivity = Math.floor(Math.random() * 100) + 1;
+    randomChattiness = Math.floor(Math.random() * 100) + 1;
+    logger.debug(`${ctx.update.update_id} - ${randomEffectivity} ${randomChattiness}`);
+    if (randomEffectivity > chatConfiguration.effectivity) {
+      logger.info(`${ctx.update.update_id} - Not anwering as the effectivity (${chatConfiguration.effectivity}) is lower than random number (${randomEffectivity})`);
+
+      // if chatty is enabled, send a funny text in 1/10 times
+      if (chatConfiguration.chatty == 1 && randomChattiness > 90) {
+        logger.info(`${ctx.update.update_id} - Sending tempting message`);
+        randomAnswers = ["\u{1F910}", 'Tú juega y verás...', 'No me tientes...', 'Esta te la paso...', 'Mejor no digo nada...', 'Te estoy vigilando...'];
+        ctx.reply(randomAnswers[randomEffectivity % randomAnswers.length], {reply_to_message_id: ctx.message.message_id});
+      }
+
+      return
+    }
+
+    // get the first pun randomly
+    if (chatConfiguration.use_globals == 1) {
+      sql = 'SELECT * FROM pun p LEFT JOIN puns_chats pc ON p.uuid=pc.pun_uuid WHERE (p.is_global=1 OR pc.chat_id=?) AND p.trigger=? ORDER BY RANDOM() LIMIT 1';
+      logger.debug(`${ctx.update.update_id} - Using globals`);
+    }
+    else {
+      sql = 'SELECT * FROM pun p LEFT JOIN puns_chats pc ON p.uuid=pc.pun_uuid WHERE pc.chat_id=? AND p.trigger=? ORDER BY RANDOM() LIMIT 1';
+      logger.debug(`${ctx.update.update_id} - Not using globals`);
+    }
+    db.get(sql, [ctx.message.chat.id, row.trigger], (err, pun) => {
+      if (err) { throw err; }
+      logger.debug(`${ctx.update.update_id} - ${JSON.stringify(pun)}`);
+
+      // send the answer
+      logger.info(`${ctx.update.update_id} - Sending answer: ${pun.answer}`);
+      ctx.reply(pun.answer, {reply_to_message_id: ctx.message.message_id});
+    });
+  });
+}
 
 // catch errors
 bot.catch(error => {
@@ -86,6 +118,14 @@ bot.catch(error => {
 async function startup() {
   await bot.launch();
   logger.info(`Bot started as ${ bot.botInfo.first_name } (@${ bot.botInfo.username })`);
+
+  // register the callback function for all unique triggers
+  let sql = 'select * from pun group by trigger;';
+  db.each(sql, (err, row) => {
+    if (err) { throw err; }
+    logger.info(`Registering callback for ${ row.trigger }`);
+    bot.hears(new RegExp(row.trigger, 'i'), (ctx) => processMessage(ctx, row));
+  });
 }
 startup();
 
