@@ -21,6 +21,7 @@
   "dependencies": {
     "sqlite3": "^5.0.2",
     "telegraf": "^4.1.0",
+    "telegraf-inline-menu": "^6.2.1",
     "telegraf-session-local": "^2.1.0",
     "winston": "^3.3.3"
   }
