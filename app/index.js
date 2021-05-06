@@ -41,12 +41,13 @@ bot.command('info', (ctx) => {
 });
 
 // process every matched message
-function processMessage(ctx, row) {
-  logger.info(`${ctx.update.update_id} - Matched message for ${row.trigger} in channel ${ctx.message.chat.title} (${ctx.message.chat.id}) written by ${ctx.from.first_name} ${ctx.from.last_name} (@${ctx.from.username} - ${ctx.from.id})`);
+function processMessage(ctx, triggeredPun) {
+  logger.info(`${ctx.update.update_id} - Matched message for ${triggeredPun.trigger} in channel ${ctx.message.chat.title} (${ctx.message.chat.id}) written by ${ctx.from.first_name} ${ctx.from.last_name} (@${ctx.from.username} - ${ctx.from.id})`);
   logger.debug(`${ctx.update.update_id} - ${JSON.stringify(ctx)}`);
 
   // get the chat configuration
-  db.get('SELECT * FROM chat WHERE id=?', [ctx.message.chat.id], (err, chat) => {
+  sql = 'SELECT * FROM chat WHERE id=?';
+  db.get(sql, [ctx.message.chat.id], (err, chat) => {
     if (err) { throw err; }
     logger.debug(`${ctx.update.update_id} - ${JSON.stringify(chat)}`);
 
@@ -55,7 +56,8 @@ function processMessage(ctx, row) {
     let defaultChatConfiguration = {silent: 0, effectivity: 75, chatty: 1, use_globals: 1};
     if (! chat) {
       chatConfiguration = defaultChatConfiguration;
-      db.run(`INSERT INTO chat VALUES (?, ?, strftime('%s','now'))`, [ctx.message.chat.id, JSON.stringify(chatConfiguration)], function(err) {
+      sql = `INSERT INTO chat VALUES (?, ?, strftime('%s','now'))`;
+      db.run(sql, [ctx.message.chat.id, JSON.stringify(chatConfiguration)], function(err) {
         if (err) { throw err; }
 
         logger.info(`${ctx.update.update_id} - Chat configuration is missing. Using the default configuration`);
@@ -92,19 +94,23 @@ function processMessage(ctx, row) {
     // get the first pun randomly
     if (chatConfiguration.use_globals == 1) {
       sql = 'SELECT * FROM pun p LEFT JOIN puns_chats pc ON p.uuid=pc.pun_uuid WHERE (p.is_global=1 OR pc.chat_id=?) AND p.trigger=? ORDER BY RANDOM() LIMIT 1';
-      logger.debug(`${ctx.update.update_id} - Using globals`);
     }
     else {
       sql = 'SELECT * FROM pun p LEFT JOIN puns_chats pc ON p.uuid=pc.pun_uuid WHERE pc.chat_id=? AND p.trigger=? ORDER BY RANDOM() LIMIT 1';
-      logger.debug(`${ctx.update.update_id} - Not using globals`);
     }
-    db.get(sql, [ctx.message.chat.id, row.trigger], (err, pun) => {
+    db.get(sql, [ctx.message.chat.id, triggeredPun.trigger], (err, pun) => {
       if (err) { throw err; }
       logger.debug(`${ctx.update.update_id} - ${JSON.stringify(pun)}`);
 
       // send the answer
       logger.info(`${ctx.update.update_id} - Sending answer: ${pun.answer}`);
       ctx.reply(pun.answer, {reply_to_message_id: ctx.message.message_id});
+
+      // update the stats
+      sql = 'INSERT INTO punstats(uuid, counter, last_used_chat_id) VALUES (?, 1, ?) ON CONFLICT(uuid) DO UPDATE SET counter=counter+1';
+      db.run(sql, [pun.uuid, ctx.message.chat.id], (err) => {
+        if (err) { throw err; }
+      });
     });
   });
 }
@@ -121,10 +127,10 @@ async function startup() {
 
   // register the callback function for all unique triggers
   let sql = 'select * from pun group by trigger;';
-  db.each(sql, (err, row) => {
+  db.each(sql, (err, pun) => {
     if (err) { throw err; }
-    logger.info(`Registering callback for ${ row.trigger }`);
-    bot.hears(new RegExp(row.trigger, 'i'), (ctx) => processMessage(ctx, row));
+    logger.info(`Registering callback for ${ pun.trigger }`);
+    bot.hears(new RegExp(pun.trigger, 'i'), (ctx) => processMessage(ctx, pun));
   });
 }
 startup();
